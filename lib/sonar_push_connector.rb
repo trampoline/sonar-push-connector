@@ -1,3 +1,5 @@
+require 'sonar_connector'
+
 module Sonar
   module Connector
     class SonarPushConnector < Sonar::Connector::Base
