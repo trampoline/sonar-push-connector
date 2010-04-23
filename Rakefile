@@ -11,7 +11,7 @@ begin
     gem.homepage = "http://github.com/trampoline/sonar-push-connector"
     gem.authors = ["Peter MacRobert", "Mark Meyer"]
     
-    gem.add_dependency "sonar_connector", ">= 0.4.0"
+    gem.add_dependency "sonar_connector", ">= 0.5.1"
     gem.add_dependency "activesupport", ">= 2.3.5"
     gem.add_dependency "json_pure", ">= 1.2.2"
     
