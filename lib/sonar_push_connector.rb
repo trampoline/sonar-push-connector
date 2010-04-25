@@ -13,7 +13,7 @@ module Sonar
       def parse(settings)
         
         @working_dir = File.join(connector_dir, 'working')
-        @error = File.join(connector_dir, 'error')
+        @error_dir = File.join(connector_dir, 'error')
         @complete_dir = File.join(connector_dir, 'complete')
         
         @uri = settings["uri"]
@@ -26,31 +26,56 @@ module Sonar
       end
       
       def action
-        create_folders
+        create_base_dirs
+        op_working, op_error, op_complete = create_op_dirs working_dir
+        move_all source_connector.complete_dir, op_working
         
-        move_all_source_dirs_into_working
-        
-        file_count = 0
-        loop_over_current_working_dirs.each do |dir|
-          
-          create_same_name_in_complete
-          
-          file_count += 1 
-          break if file_count == batch_size
+        files = Dir.chdir(op_working){ Dir['**/*'] }[0...batch_size]
+        files.each do |file|
+          log.info file
+          # relative_dir = File.dirname(file)
+          # 
+          # working/working_232323
+          # create_same_name_in_complete
+          # response = push_file(file)
+          # case response
+          # when Good
+          #   
+          # 
         end
         
         
-        Net::HTTP.post_form URI.parse(uri), 
+        
       end
       
       # Create internal dirs for this connector instance.
-      def create_dirs
+      def create_base_dirs
         [working_dir, error_dir, complete_dir].each do |dir|
           FileUtils.mkdir_p dir unless File.directory?(dir)
         end
       end
       
+      # Create and return op dirs inside a working dir.
+      def create_op_dirs(working_dir)
+        ["op_working", "op_error", "op_complete"].map do |prefix|
+          dir = File.join working_dir, Sonar::Connector::Utils.timestamped_id(prefix)
+          FileUtils.mkdir_p(dir) unless File.directory?(dir)
+          dir
+        end
+      end
       
+      # Move all files and dirs from source dir to target dir
+      def move_all(source_dir, target_dir)
+        [source_dir, target_dir].each {|dir| raise "dir doesn't exist" unless File.directory?(dir)}
+        
+        Dir[File.join source_dir, "*"].each do |f|
+          FileUtils.mv(f, target_dir)
+        end
+      end
+        
+      def push_file
+        # Net::HTTP.post_form URI.parse(uri), 
+      end
       
     end
   end
