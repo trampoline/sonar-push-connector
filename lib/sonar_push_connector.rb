@@ -16,34 +16,36 @@ module Sonar
         # ensure that there's a source connector to pull data from
         raise Sonar::Connector::InvalidConfig.new("Connector '#{name}': parameter 'source_connector' required.") if settings["source_connector"].blank?
         
-        @batch_size = settings["batch_size"] || 1000
+        @batch_size = settings["batch_size"] || 50
       end
       
       def action
         source_connector.complete.move_all_to working
         
-        working.files[0...batch_size].each do |filename|
-          response = push(filename)
-        end
-      end
-      
-      def push(filename)
-        params = JSON.parse File.read(filename)
-        u = URI.parse uri
-        http = Net::HTTP.new(u.host, u.port)
-        http.read_timeout = 500 #is this in seconds?
+        files = working.files[0...batch_size]
         
-        res = http.post u.path, {"foo"=>"bar"}
-        case res
-        when Net::HTTPSuccess, Net::HTTPRedirection
-          working.move filename, complete
-          log.info "pushed file #{filename} to #{uri}, moved to complete filestore."
-        else
-          log.warn "could not push file #{filename} to #{uri}. File remains in working filestore."
-          res.error!
+        if files.empty?
+          log.info "Nothing to do."
+          return
         end
-      rescue Timeout::Error
-        log.warn "update timeout error"
+        
+        params = {"messages" => files.map{|file| JSON.parse(File.read file)}.to_json }
+        begin
+          res = Net::HTTP.post_form URI.parse(uri), params
+          case res
+          when Net::HTTPSuccess, Net::HTTPRedirection
+            files.each {|f| working.move f, complete}
+            log.info "pushed #{files.size} messages to #{uri} and moved associated files to complete filestore."
+          else
+            res.error!
+          end
+        rescue Timeout::Error
+          log.warn "caught a timeout error, re-raising"
+          raise $!
+        rescue
+          log.warn "could not post to #{uri}. Files remain in working filestore."
+          raise $!
+        end
       end
       
     end
