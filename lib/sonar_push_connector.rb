@@ -8,14 +8,19 @@ module Sonar
       
       attr_reader :uri
       attr_reader :batch_size
+      attr_reader :connector_credentials
       
       def parse(settings)
         @uri = settings["uri"]
         raise Sonar::Connector::InvalidConfig.new("Connector '#{name}': parameter 'uri' required.") if @uri.blank?
+
+        @connector_credentials = settings["connector_credentials"]
+        raise Sonar::Connector::InvalidConfig.new("Connector '#{name}': parameter 'connector_credentials' required") if @connector_credentials.blank?
         
         # ensure that there's a source connector to pull data from
         raise Sonar::Connector::InvalidConfig.new("Connector '#{name}': parameter 'source_connector' required.") if settings["source_connector"].blank?
         
+
         @batch_size = settings["batch_size"] || 50
       end
       
@@ -29,7 +34,8 @@ module Sonar
           return
         end
         
-        params = {"messages" => files.map{|file| JSON.parse(File.read file)}.to_json }
+        params = {"messages" => files.map{|file| JSON.parse(File.read file)}.to_json,
+          "connector_credentials" => connector_credentials}
         begin
           res = Net::HTTP.post_form URI.parse(uri), params
           case res
