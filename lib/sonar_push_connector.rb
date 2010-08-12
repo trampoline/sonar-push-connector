@@ -25,35 +25,35 @@ module Sonar
       end
       
       def action
-        source_connector.complete.move_all_to working
+        source_connector.filestore.flip(:complete, filestore, :working)
         
-        files = working.files[0...batch_size]
+        begin
+          count = filestore.process_batch(@batch_size, :working) do |files|
+            paths = files.map{|f| filestore.file_path(:working, f)}
+            begin
+              log.debug"pushing #{files.length} files"
+              push_batch(paths)
+            rescue Exception => e
+              log.warn ["caught an exception : leaving files in working area", 
+                        e.class.to_s, e.message, e.backtrace].join('\n')
+              raise Sonar::Connector::FileStore::LeaveInSourceArea, e.message
+            end
+          end
+        end while count>0
+      end
         
-        if files.empty?
-          log.info "Nothing to do."
-          return
-        end
-        
+      def push_batch(files)
         params = {"messages" => files.map{|file| JSON.parse(File.read file)}.to_json,
           "connector_credentials" => connector_credentials}
-        begin
-          res = Net::HTTP.post_form URI.parse(uri), params
-          case res
-          when Net::HTTPSuccess, Net::HTTPRedirection
-            files.each {|f| working.move f, complete}
-            log.info "pushed #{files.size} messages to #{uri} and moved associated files to complete filestore."
-          else
-            res.error!
-          end
-        rescue Timeout::Error
-          log.warn "caught a timeout error, re-raising"
-          raise $!
-        rescue
-          log.warn "could not post to #{uri}. Files remain in working filestore."
-          raise $!
+        res = Net::HTTP.post_form URI.parse(uri), params
+        case res
+        when Net::HTTPSuccess, Net::HTTPRedirection
+          log.info "pushed #{files.size} messages to #{uri}"
+        else
+          res.error!
         end
       end
-      
+
     end
   end
 end
