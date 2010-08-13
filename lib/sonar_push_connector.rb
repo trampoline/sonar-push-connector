@@ -25,7 +25,7 @@ module Sonar
       end
       
       def action
-        source_connector.filestore.flip(:complete, filestore, :working)
+        source_connector.connector_filestore.flip(:complete, filestore, :working)
         
         begin
           count = filestore.process_batch(@batch_size, :working) do |files|
