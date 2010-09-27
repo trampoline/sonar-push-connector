@@ -18,14 +18,14 @@ module Sonar
         raise Sonar::Connector::InvalidConfig.new("Connector '#{name}': parameter 'connector_credentials' required") if @connector_credentials.blank?
         
         # ensure that there's a source connector to pull data from
-        raise Sonar::Connector::InvalidConfig.new("Connector '#{name}': parameter 'source_connector' required.") if settings["source_connector"].blank?
+        raise Sonar::Connector::InvalidConfig.new("Connector '#{name}': parameter 'source_connectors' required.") if settings["source_connectors"].blank? || settings["source_connectors"].empty?
         
 
         @batch_size = settings["batch_size"] || 50
       end
       
       def action
-        source_connector.connector_filestore.flip(:complete, filestore, :working)
+        source_connectors.each {|c| c.connector_filestore.flip(:complete, filestore, :working) }
         
         begin
           count = filestore.process_batch(@batch_size, :working) do |files|
