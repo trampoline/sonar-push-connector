@@ -9,6 +9,7 @@ module Sonar
       attr_reader :uri
       attr_reader :batch_size
       attr_reader :connector_credentials
+      attr_reader :delete
       
       def parse(settings)
         @uri = settings["uri"]
@@ -22,13 +23,19 @@ module Sonar
         
 
         @batch_size = settings["batch_size"] || 50
+
+        # delete by default
+        @delete = settings["delete"]
+        @delete = true if @delete.nil? 
       end
       
       def action
         source_connectors.each {|c| c.connector_filestore.flip(:complete, filestore, :working) }
         
         begin
-          count = filestore.process_batch(@batch_size, :working) do |files|
+          # error batches stay in the working area
+          # and complete batches are either deleted or moved to the complete area
+          count = filestore.process_batch(@batch_size, :working, :working, (:complete if !delete)) do |files|
             paths = files.map{|f| filestore.file_path(:working, f)}
             begin
               log.debug"pushing #{files.length} files"
