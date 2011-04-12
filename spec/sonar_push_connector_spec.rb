@@ -59,5 +59,27 @@ describe Sonar::Connector::SonarPushConnector do
       }
       c.action
     end
+
+    it "should catch exceptions during push, and raise LeaveInSourceArea" do
+      c=Sonar::Connector::SonarPushConnector.new(simple_config, @base_config)
+      c.instance_eval{@filestore = Object.new}
+      source_connectors = [Object.new]
+      mock(c).source_connectors{source_connectors}
+      mock(source_connectors[0]).connector_filestore.mock!.flip(:complete, c.filestore, :working)
+
+      root = "/blah/blah"
+      files = ["foo/bar", "foo/foo"]
+      files.each{|file| mock(c.filestore).file_path(:working, file){ "#{root}/working/#{file}" }}
+      mock(c).push_batch(["/blah/blah/working/foo/bar", "/blah/blah/working/foo/foo"]){raise "boo"}
+
+      mock(c.filestore).process_batch.with_any_args{ |size, source, error, success, block|
+        lambda{
+          block.call(files)
+        }.should raise_error(Sonar::Connector::FileStore::LeaveInSourceArea)
+        0
+      }
+
+      c.action
+    end
   end
 end
