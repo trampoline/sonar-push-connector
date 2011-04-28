@@ -26,7 +26,7 @@ module Sonar
       end
       
       def action
-        source_connectors.each {|c| c.connector_filestore.flip(:complete, filestore, :working) }
+        source_connectors.each {|c| c.connector_filestore.flip(:complete, filestore, :working) } if source_connectors
         
         begin
           # error batches stay in the working area
