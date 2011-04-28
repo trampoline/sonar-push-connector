@@ -18,10 +18,6 @@ module Sonar
         @connector_credentials = settings["connector_credentials"]
         raise Sonar::Connector::InvalidConfig.new("Connector '#{name}': parameter 'connector_credentials' required") if @connector_credentials.blank?
         
-        # ensure that there's a source connector to pull data from
-        raise Sonar::Connector::InvalidConfig.new("Connector '#{name}': parameter 'source_connectors' required.") if settings["source_connectors"].blank? || settings["source_connectors"].empty?
-        
-
         @batch_size = settings["batch_size"] || 50
 
         # delete by default
